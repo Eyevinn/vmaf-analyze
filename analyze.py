@@ -11,38 +11,43 @@ import csv
 # Returns the distance between p0 and the line that spans p1 and p2
 def distance(p0, p1, p2):
     return np.linalg.norm(np.cross(p2-p1, p1-p0))/np.linalg.norm(p2-p1)
-    # num = np.abs(((p2[0]-p1[0]) * (p1[1]-p0[1])) - ((p1[0]-p0[0]) * (p2[1]-p1[1])))
-    # dem = np.sqrt(np.power(p2[0]-p1[0], 2) + np.power(p2[1]-p1[1], 2))
-    # return num/dem
 
-def bitrate_from_file(path):
-    output = subprocess.run(["ffprobe", path, "-print_format", "json", "-v", "quiet", "-show_entries", "stream=bit_rate"], text=True, capture_output=True).stdout
-    file_data = json.loads(output)
-    if "streams" in file_data:
-        return int(file_data["streams"][0]["bit_rate"])
-    else:
-        return None 
+def bitrate_from_filename(path):
+    filename = os.path.splitext(os.path.basename(path))[0]
+    data = filename.split("_")[1]
+    return int(data)
 
-def resolution_from_file(path):
-    output = subprocess.run(["ffprobe", path, "-print_format", "json", "-v", "quiet", "-show_entries", "stream=width,height"], text=True, capture_output=True).stdout
-    file_data = json.loads(output)
-    if "streams" in file_data:
-        width = int(file_data["streams"][0]["width"])
-        height = int(file_data["streams"][0]["height"])
-        return width, height
-    else:
-        return None
+def resolution_from_filename(path):
+    filename = os.path.splitext(os.path.basename(path))[0]
+    data = filename.split("_")[0].split("x")
+    return (int(data[0]), int(data[1]))
 
 parser = argparse.ArgumentParser(description="Analyze VMAF scores.")
-parser.add_argument("directories", type=str, nargs='+', help="A list of directories with video files and VMAF scores.")
+parser.add_argument("directories", type=str, nargs='+', help="A list of directories with VMAF scores.")
 parser.add_argument("--plot", action='store_true', dest="should_plot", help="Whether or not to display a plot with VMAF scores.")
-parser.add_argument("--export-csv", type=str, help="Export as CSV to this file.", dest="csv_export")
+parser.add_argument("--export-csv", type=str, help="Export the best bitrates as CSV to this file.", dest="csv_export")
+parser.add_argument("--export-csv-raw", type=str, help="Export all data to this CSV-file.", dest="csv_export_raw")
+parser.add_argument("--ignore-resolutions", type=str, help="List of all resolutions to ignore.")
 parser.set_defaults(should_plot=False)
 
 args = parser.parse_args()
 directories = args.directories
 should_plot = args.should_plot
 csv_export = args.csv_export
+csv_export_raw = args.csv_export_raw
+ignore_resolutions_str = args.ignore_resolutions
+
+ignore_resolutions = []
+if ignore_resolutions:
+    for resolution_str in ignore_resolutions_str.split(","):
+        parts = resolution_str.split("x")
+        if len(parts) != 2 or any(not part.isdigit() for part in parts):
+            print("Unable to parse resolutions. Resolutions should be in format WIDTHxHEIGHT. Example: \"1920x1080\"")
+            sys.exit(1)
+
+        width = int(parts[0])
+        height = int(parts[1])
+        ignore_resolutions.append((width, height))
 
 vmaf_for_resolution = {}
 i = 1
@@ -54,15 +59,16 @@ for directory in directories:
         filename = os.path.join(directory, file)
         if os.path.isfile(filename):
             extension = os.path.splitext(filename)[1]
-            if extension == ".mp4":
-                bitrate = bitrate_from_file(filename)
-                width, height = resolution_from_file(filename)
+            if extension == ".json":
+                bitrate = bitrate_from_filename(filename)
+                width, height = resolution_from_filename(filename)
                 resolution = str(width) + "x" + str(height)
 
-                vmaf_json = os.path.splitext(filename)[0] + "_vmaf.json"
+                if (width, height) in ignore_resolutions:
+                    continue
 
                 try:
-                    with open(vmaf_json) as f:
+                    with open(filename) as f:
                         vmaf_data = json.load(f)
                         vmaf = vmaf_data["pooled_metrics"]["vmaf"]["harmonic_mean"]
 
@@ -71,7 +77,7 @@ for directory in directories:
                         else:
                             vmaf_for_resolution[resolution] = {bitrate: vmaf}
                 except:
-                    print("Unable to load VMAF scores from " + vmaf_json + ".")
+                    print("Unable to load VMAF scores from " + filename + ".")
                     sys.exit(1)
         print("Directory " + str(i) + ": Processed file " + str(k) + "/" + str(len(files)))
         k += 1
@@ -117,6 +123,9 @@ for resolution, current_points in points_for_resolution.items():
     plt.plot(best[1], best[2], 'kx')
     # plt.plot(second_best[1], second_best[2], 'wx')
 
+# for simplex in hull.simplices:
+#     plt.plot(points[simplex, 0], points[simplex, 1], 'k-')
+
 print("Finished processing.")
 
 if should_plot:
@@ -137,7 +146,16 @@ print("--------")
 if csv_export:
     with open(csv_export, 'w') as file:
         csv_writer = csv.writer(file)
-        csv_writer.writerow(["Resolution", "Optimal bit rate", "Second best bit rate", "Third best bit rate"])
+        csv_writer.writerow(["Resolution", "Optimal bit rate", "Second best bit rate", "Third best bit rate", "Fourth best bit rate", "Fifth best bit rate"])
         for resolution, optimal_bitrate in optimal_bitrate_for_resolution.items():
-            csv_writer.writerow([resolution, optimal_bitrate[0][0], optimal_bitrate[1][0], optimal_bitrate[2][0]])
+            csv_writer.writerow([resolution, optimal_bitrate[0][0], optimal_bitrate[1][0], optimal_bitrate[2][0], optimal_bitrate[3][0], optimal_bitrate[4][0]])
     print("Exported results to \"" + csv_export + "\"")
+
+if csv_export_raw:
+    with open(csv_export_raw, 'w') as file:
+        csv_writer = csv.writer(file)
+        csv_writer.writerow(["Resolution", "Bit rate", "VMAF"])
+        for resolution, vmaf_for_bitrate in vmaf_for_resolution.items():
+            for bitrate, vmaf in vmaf_for_bitrate.items():
+                csv_writer.writerow([resolution, bitrate, vmaf])
+    print("Exported raw data to \"" + csv_export_raw + "\"")
