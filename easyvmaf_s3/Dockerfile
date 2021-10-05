@@ -76,5 +76,5 @@ ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib64/"
 RUN pip3 install boto3
 
 WORKDIR  /app
-COPY vmaf_s3.py vmaf_s3.py
-ENTRYPOINT [ "python3", "s3.py" ]
+COPY easyvmaf_s3.py easyvmaf_s3.py
+ENTRYPOINT [ "python3", "easyvmaf_s3.py" ]
