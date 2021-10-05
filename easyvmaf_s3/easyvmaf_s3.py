@@ -21,7 +21,7 @@ s3 = boto3.client('s3')
 s3.download_file(reference_input_bucket, reference_input_object, reference_file)
 s3.download_file(distorted_input_bucket, distorted_input_object, distorted_file)
 
-subprocess.call(["python3", "easyVmaf.py", "-r", reference_file, "-d", distorted_file, "-endsync"])
+subprocess.call(["python3", "easyVmaf.py", "-r", reference_file, "-d", distorted_file])
 
 output_file = os.path.splitext(distorted_file)[0] + "_vmaf.json"
 
