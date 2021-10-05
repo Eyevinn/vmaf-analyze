@@ -1,0 +1,64 @@
+{
+  "name": "example",
+  "reference": "reference.mp4",
+  "resolutions": [
+    "416x234",
+    "640x360",
+    "768x432",
+    "960x540",
+    "1280x720",
+    "1920x1080"
+  ],
+  "aws": {
+    "s3Bucket": "s3://bucket",
+    "mediaConvertEndpoint": "https://example.amazonaws.com",
+    "mediaConvertRole": "arn:aws:iam::example",
+    "ecsSubnet": "subnet-example",
+    "ecsSecurityGroup": "sg-example",
+    "ecsCluster": "cluster",
+    "ecsTaskDefinition": "easyvmaf-s3:1"
+  },
+  "encodeSettings": {
+    "Inputs": [
+      {
+        "TimecodeSource": "ZEROBASED",
+        "VideoSelector": {},
+        "FileInput": "$INPUT"
+      }
+    ],
+    "OutputGroups": [
+      {
+        "Name": "File Group",
+        "OutputGroupSettings": {
+          "Type": "FILE_GROUP_SETTINGS",
+          "FileGroupSettings": {
+            "Destination": "$OUTPUT"
+          }
+        },
+        "Outputs": [
+          {
+            "VideoDescription": {
+              "CodecSettings": {
+                "Codec": "H_264",
+                "H264Settings": {
+                  "RateControlMode": "CBR",
+                  "Bitrate": "$BITRATE",
+                  "CodecProfile": "HIGH"
+                }
+              },
+              "Width": "$WIDTH",
+              "Height": "$HEIGHT"
+            },
+            "ContainerSettings": {
+              "Container": "MP4",
+              "Mp4Settings": {}
+            }
+          }
+        ]
+      }
+    ],
+    "TimecodeConfig": {
+      "Source": "ZEROBASED"
+    }
+  }
+}
