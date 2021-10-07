@@ -1,5 +1,7 @@
 # Automate VMAF-analysis in the cloud
 
+Read more about this on the Eyevinn Video Dev-Team Blog: [Automating video analysis to cut your streaming bandwidth usage in half](https://dev.to/video/automating-video-analysis-to-cut-your-streaming-bandwidth-usage-in-half-5hk1)
+
 To set up on your own AWS:
 1. On ECS: Create a cluster and task definition that uses the Docker-container in the `easyvmaf_s3`-directory.
 2. On S3: Create a bucket in which you want the transcoded videos and VMAF-scores to be in.
